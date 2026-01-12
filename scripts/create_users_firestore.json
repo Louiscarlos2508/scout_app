@@ -1,0 +1,49 @@
+{
+  "users": [
+    {
+      "id": "admin-user-1",
+      "email": "admin@scoutapp.com",
+      "firstName": "Admin",
+      "lastName": "Principal",
+      "role": "admin",
+      "unitId": "unit-1"
+    },
+    {
+      "id": "leader-user-1",
+      "email": "chef@scoutapp.com",
+      "firstName": "Jean",
+      "lastName": "Dupont",
+      "role": "unitLeader",
+      "unitId": "unit-1"
+    },
+    {
+      "id": "assistant-user-1",
+      "email": "assistant@scoutapp.com",
+      "firstName": "Marie",
+      "lastName": "Martin",
+      "role": "assistantLeader",
+      "unitId": "unit-1",
+      "branchId": "branch-louveteaux-1"
+    },
+    {
+      "id": "assistant-user-2",
+      "email": "assistant2@scoutapp.com",
+      "firstName": "Pierre",
+      "lastName": "Bernard",
+      "role": "assistantLeader",
+      "unitId": "unit-1",
+      "branchId": "branch-eclaireurs-1"
+    }
+  ],
+  "instructions": {
+    "step1": "Créer les utilisateurs dans Firebase Authentication avec les emails et mots de passe suivants:",
+    "passwords": {
+      "admin@scoutapp.com": "Admin123!",
+      "chef@scoutapp.com": "Chef123!",
+      "assistant@scoutapp.com": "Assistant123!",
+      "assistant2@scoutapp.com": "Assistant123!"
+    },
+    "step2": "Utiliser les UIDs Firebase Auth comme Document IDs dans Firestore",
+    "step3": "Créer les documents dans la collection 'users' avec les champs indiqués ci-dessus"
+  }
+}

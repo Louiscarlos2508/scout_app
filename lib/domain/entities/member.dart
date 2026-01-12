@@ -1,3 +1,6 @@
+import 'phone_number.dart';
+import 'parent_contact.dart';
+
 /// Entité représentant un membre (scout) dans le système.
 class Member {
   final String id;
@@ -5,9 +8,14 @@ class Member {
   final String lastName;
   final DateTime dateOfBirth;
   final String branchId;
-  final String? parentPhone;
+  final String? unitId; // ID de l'unité à laquelle appartient le membre
+  final String? photoUrl; // URL de la photo du membre
+  final List<PhoneNumber> phoneNumbers; // Numéros de téléphone du membre (pour non-louveteaux)
+  final List<ParentContact> parentContacts; // Contacts des parents/tuteurs
   final MedicalInfo? medicalInfo;
   final DateTime? lastSync;
+  final DateTime? deletedAt; // Date de suppression (soft delete)
+  final String? deletionReason; // Motif de suppression
 
   const Member({
     required this.id,
@@ -15,10 +23,18 @@ class Member {
     required this.lastName,
     required this.dateOfBirth,
     required this.branchId,
-    this.parentPhone,
+    this.unitId,
+    this.photoUrl,
+    this.phoneNumbers = const [],
+    this.parentContacts = const [],
     this.medicalInfo,
     this.lastSync,
+    this.deletedAt,
+    this.deletionReason,
   });
+
+  /// Vérifie si le membre est supprimé (soft delete).
+  bool get isDeleted => deletedAt != null;
 
   String get fullName => '$firstName $lastName';
 
@@ -30,6 +46,14 @@ class Member {
       age--;
     }
     return age;
+  }
+
+  /// Retourne le numéro de téléphone principal (pour compatibilité avec l'ancien code).
+  String? get parentPhone {
+    if (parentContacts.isEmpty) return null;
+    final firstContact = parentContacts.first;
+    if (firstContact.phoneNumbers.isEmpty) return null;
+    return firstContact.phoneNumbers.first.number;
   }
 }
 

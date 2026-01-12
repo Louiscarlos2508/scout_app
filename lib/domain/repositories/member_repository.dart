@@ -16,8 +16,14 @@ abstract class MemberRepository {
   /// Met à jour un membre existant.
   Future<Either<Failure, Member>> updateMember(Member member);
 
-  /// Supprime un membre.
-  Future<Either<Failure, void>> deleteMember(String id);
+  /// Supprime un membre (soft delete).
+  Future<Either<Failure, void>> deleteMember(String id, String reason);
+
+  /// Restaure un membre supprimé.
+  Future<Either<Failure, Member>> restoreMember(String id);
+
+  /// Récupère tous les membres supprimés.
+  Future<Either<Failure, List<Member>>> getDeletedMembers();
 
   /// Synchronise les membres avec le serveur.
   Future<Either<Failure, void>> syncMembers();

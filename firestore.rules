@@ -1,0 +1,186 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions pour récupérer les données utilisateur
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function userExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    
+    function getUserRole() {
+      return userExists() ? getUserData().role : null;
+    }
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && userExists() && getUserRole() == 'admin';
+    }
+    
+    function isUnitLeader() {
+      return isAuthenticated() && userExists() && getUserRole() == 'unitLeader';
+    }
+    
+    function isAssistantLeader() {
+      return isAuthenticated() && userExists() && getUserRole() == 'assistantLeader';
+    }
+    
+    function hasAccessToBranch(branchId) {
+      return userExists() && 
+             (isAdmin() || 
+              isUnitLeader() || 
+              (isAssistantLeader() && getUserData().branchId == branchId));
+    }
+    
+    function hasAccessToUnit(unitId) {
+      return userExists() && 
+             (isAdmin() || 
+              (isUnitLeader() && getUserData().unitId == unitId));
+    }
+    
+    // Collection: users
+    match /users/{userId} {
+      // Lecture : 
+      // - Si l'utilisateur existe et est admin, il peut tout lire
+      // - Sinon, un utilisateur authentifié peut lire son propre profil
+      allow read: if isAuthenticated() && 
+                     (userExists() && isAdmin() || 
+                      request.auth.uid == userId);
+      
+      // Création : 
+      // - Admin peut créer n'importe quel utilisateur
+      // - Un utilisateur authentifié peut créer son propre document (première connexion)
+      //   avec un rôle par défaut de unitLeader (pas admin)
+      allow create: if isAuthenticated() && 
+                     (userExists() && isAdmin() || 
+                      (request.auth.uid == userId &&
+                       (!('role' in request.resource.data) || 
+                        request.resource.data.role == 'unitLeader')));
+      
+      // Mise à jour : 
+      // - Admin peut tout modifier
+      // - Utilisateurs peuvent modifier leur propre profil (sauf le rôle)
+      allow update: if isAuthenticated() && 
+                     (userExists() && isAdmin() || 
+                      (request.auth.uid == userId && 
+                       resource != null &&
+                       !('role' in request.resource.data.diff(resource.data).affectedKeys())));
+      
+      // Suppression : Seul l'admin peut supprimer des utilisateurs
+      allow delete: if isAuthenticated() && userExists() && isAdmin();
+    }
+    
+    // Collection: members
+    match /members/{memberId} {
+      // Lecture : Permettre la lecture si l'utilisateur n'existe pas encore (première connexion)
+      // ou s'il existe et a accès à la branche
+      // Note: Pour les requêtes de liste, on permet la lecture si l'utilisateur est authentifié
+      // et on filtre côté application selon les permissions
+      allow read: if isAuthenticated() && 
+                     (!userExists() ||
+                      resource == null ||
+                      hasAccessToBranch(resource.data.branchId));
+      
+      // Création : Permettre seulement si l'utilisateur existe et a accès
+      // (pas de création lors de la première connexion pour éviter les données invalides)
+      allow create: if isAuthenticated() && 
+                       userExists() &&
+                       hasAccessToBranch(request.resource.data.branchId);
+      
+      // Mise à jour : Utilisateurs avec accès à la branche du membre
+      allow update: if isAuthenticated() && 
+                       userExists() &&
+                       resource != null &&
+                       hasAccessToBranch(resource.data.branchId) &&
+                       resource.data.branchId == request.resource.data.branchId;
+      
+      // Suppression : Utilisateurs avec accès à la branche
+      allow delete: if isAuthenticated() && 
+                       userExists() &&
+                       resource != null &&
+                       hasAccessToBranch(resource.data.branchId);
+    }
+    
+    // Permettre les requêtes de liste sur members (nécessaire pour getCollection)
+    match /members {
+      allow list: if isAuthenticated();
+    }
+    
+    // Collection: attendance
+    match /attendance/{attendanceId} {
+      // Lecture : Permettre la lecture si l'utilisateur n'existe pas encore (première connexion)
+      // ou s'il existe et a accès à la branche
+      // Note: Pour les requêtes de liste, on permet la lecture si l'utilisateur est authentifié
+      allow read: if isAuthenticated() && 
+                     (!userExists() ||
+                      resource == null ||
+                      hasAccessToBranch(resource.data.branchId));
+      
+      // Création : Permettre seulement si l'utilisateur existe et a accès
+      // (pas de création lors de la première connexion pour éviter les données invalides)
+      allow create: if isAuthenticated() && 
+                       userExists() &&
+                       hasAccessToBranch(request.resource.data.branchId);
+      
+      // Mise à jour : Utilisateurs avec accès à la branche de la session
+      allow update: if isAuthenticated() && 
+                       userExists() &&
+                       resource != null &&
+                       hasAccessToBranch(resource.data.branchId) &&
+                       resource.data.branchId == request.resource.data.branchId;
+      
+      // Suppression : Utilisateurs avec accès à la branche
+      allow delete: if isAuthenticated() && 
+                       userExists() &&
+                       resource != null &&
+                       hasAccessToBranch(resource.data.branchId);
+    }
+    
+    // Permettre les requêtes de liste sur attendance (nécessaire pour getCollection)
+    match /attendance {
+      allow list: if isAuthenticated();
+    }
+    
+    // Collection: branches
+    match /branches/{branchId} {
+      // Lecture : Tous les utilisateurs authentifiés (même première connexion)
+      allow read: if isAuthenticated();
+      
+      // Création/Modification/Suppression : Admin et unitLeader (doivent exister)
+      allow create: if isAdmin() || isUnitLeader();
+      allow update: if isAdmin() || 
+                       (isUnitLeader() && 
+                        resource != null &&
+                        hasAccessToUnit(resource.data.unitId));
+      allow delete: if isAdmin();
+    }
+    
+    // Collection: units
+    match /units/{unitId} {
+      // Lecture : Tous les utilisateurs authentifiés (même première connexion)
+      allow read: if isAuthenticated();
+      
+      // Création/Modification/Suppression : Admin et unitLeader (doivent exister)
+      allow create: if isAdmin() || isUnitLeader();
+      allow update: if isAdmin() || 
+                       (isUnitLeader() && hasAccessToUnit(unitId));
+      allow delete: if isAdmin();
+    }
+    
+    // Collection: groups
+    match /groups/{groupId} {
+      // Lecture : Tous les utilisateurs authentifiés
+      allow read: if isAuthenticated();
+      
+      // Création/Modification/Suppression : Admin uniquement
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}

@@ -24,9 +24,12 @@ class Validators {
     if (value == null || value.isEmpty) {
       return null; // Optionnel
     }
-    final phoneRegex = RegExp(r'^[0-9]{10}$');
-    if (!phoneRegex.hasMatch(value.replaceAll(' ', ''))) {
-      return 'Format de téléphone invalide';
+    // Format burkinabé : 8 chiffres (ex: 70 12 34 56, 76 12 34 56)
+    // Pas besoin de code pays (+226)
+    final cleanedValue = value.replaceAll(RegExp(r'[\s\-]'), '');
+    final phoneRegex = RegExp(r'^[0-9]{8}$');
+    if (!phoneRegex.hasMatch(cleanedValue)) {
+      return 'Format invalide (8 chiffres, ex: 70 12 34 56)';
     }
     return null;
   }
@@ -37,6 +40,16 @@ class Validators {
     }
     if (value.isAfter(DateTime.now())) {
       return 'La date ne peut pas être dans le futur';
+    }
+    return null;
+  }
+
+  static String? validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Le mot de passe est requis';
+    }
+    if (value.length < 6) {
+      return 'Le mot de passe doit contenir au moins 6 caractères';
     }
     return null;
   }

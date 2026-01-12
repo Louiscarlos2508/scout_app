@@ -26,3 +26,10 @@ linter:
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options
+
+analyzer:
+  errors:
+    # Ignore JavaScript integer literal errors in generated .g.dart files
+    avoid_js_rounded_ints: ignore
+  exclude:
+    - "**/*.g.dart"

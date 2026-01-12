@@ -1,0 +1,7 @@
+# Configuration pour servir les fichiers WASM avec le bon type MIME
+AddType application/wasm .wasm
+
+# Headers pour WebAssembly
+<FilesMatch "\.wasm$">
+  Header set Content-Type "application/wasm"
+</FilesMatch>
