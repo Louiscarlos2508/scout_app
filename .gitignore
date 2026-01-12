@@ -36,6 +36,9 @@ migrate_working_dir/
 # Symbolication related
 app.*.symbols
 
+firebase.json
+lib/firebase_options.dart
+
 # Obfuscation related
 app.*.map.json
 
