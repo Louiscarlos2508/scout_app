@@ -1,7 +1,10 @@
-import '../../../domain/entities/attendance.dart';
 import '../../models/attendance_model.dart';
+// Export unique implementation using Drift (works on all platforms)
+export 'attendance_local_datasource_impl.dart';
 
-/// Source de données locale pour les présences (Isar).
+/// Source de données locale pour les présences.
+/// 
+/// Utilise Drift sur toutes les plateformes (mobile, desktop, web).
 abstract class AttendanceLocalDataSource {
   /// Récupère toutes les sessions de présence d'une branche.
   Future<List<AttendanceModel>> getAttendanceByBranch(String branchId);
@@ -21,43 +24,3 @@ abstract class AttendanceLocalDataSource {
   /// Supprime toutes les sessions du cache local.
   Future<void> clearCache();
 }
-
-class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
-  // TODO: Implémenter avec Isar
-  @override
-  Future<List<AttendanceModel>> getAttendanceByBranch(String branchId) async {
-    // TODO: Implémenter
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<AttendanceModel?> getAttendanceById(String id) async {
-    // TODO: Implémenter
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> cacheAttendance(AttendanceModel attendance) async {
-    // TODO: Implémenter
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> cacheAttendanceList(List<AttendanceModel> attendanceList) async {
-    // TODO: Implémenter
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> deleteAttendance(String id) async {
-    // TODO: Implémenter
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> clearCache() async {
-    // TODO: Implémenter
-    throw UnimplementedError();
-  }
-}
-

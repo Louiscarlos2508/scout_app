@@ -1,4 +1,5 @@
 import 'package:dartz/dartz.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../domain/entities/attendance.dart';
 import '../../domain/repositories/attendance_repository.dart';
 import '../../core/errors/failures.dart';
@@ -25,20 +26,28 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
     String branchId,
   ) async {
     try {
-      if (await networkInfo.isConnected) {
-        final remoteAttendance =
-            await remoteDataSource.getAttendanceByBranch(branchId);
-        await localDataSource.cacheAttendanceList(
-          remoteAttendance.map((a) => AttendanceModel.fromEntity(a)).toList(),
-        );
+      // Sur le web, utiliser directement Firebase
+      if (kIsWeb) {
+        final remoteAttendance = await remoteDataSource.getAttendanceByBranch(branchId);
         return Right(remoteAttendance);
-      } else {
-        final localAttendance =
-            await localDataSource.getAttendanceByBranch(branchId);
-        return Right(localAttendance);
       }
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
+      
+      // Sur mobile/desktop, charger depuis Drift d'abord (rapide)
+      final localAttendance =
+          await localDataSource.getAttendanceByBranch(branchId);
+      
+      // Synchroniser en arrière-plan si connecté (non bloquant)
+      if (await networkInfo.isConnected) {
+        remoteDataSource.getAttendanceByBranch(branchId).then((remoteAttendance) async {
+          await localDataSource.cacheAttendanceList(
+            remoteAttendance.map((a) => AttendanceModel.fromEntity(a)).toList(),
+          );
+        }).catchError((e) {
+          // Ignorer les erreurs de synchronisation en arrière-plan
+        });
+      }
+      
+      return Right(localAttendance);
     } on CacheException catch (e) {
       return Left(CacheFailure(e.message));
     } catch (e) {
@@ -49,22 +58,30 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
   @override
   Future<Either<Failure, Attendance>> getAttendanceById(String id) async {
     try {
-      if (await networkInfo.isConnected) {
+      // Sur le web, utiliser directement Firebase
+      if (kIsWeb) {
         final remoteAttendance = await remoteDataSource.getAttendanceById(id);
-        await localDataSource.cacheAttendance(
-          AttendanceModel.fromEntity(remoteAttendance),
-        );
         return Right(remoteAttendance);
-      } else {
-        final localAttendance = await localDataSource.getAttendanceById(id);
-        if (localAttendance != null) {
-          return Right(localAttendance);
-        } else {
-          return Left(CacheFailure('Attendance not found in cache'));
-        }
       }
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
+      
+      // Sur mobile/desktop, charger depuis Drift d'abord (rapide)
+      final localAttendance = await localDataSource.getAttendanceById(id);
+      
+      if (localAttendance != null) {
+        // Synchroniser en arrière-plan si connecté (non bloquant)
+        if (await networkInfo.isConnected) {
+          remoteDataSource.getAttendanceById(id).then((remoteAttendance) async {
+            await localDataSource.cacheAttendance(
+              AttendanceModel.fromEntity(remoteAttendance),
+            );
+          }).catchError((e) {
+            // Ignorer les erreurs de synchronisation en arrière-plan
+          });
+        }
+        return Right(localAttendance);
+      } else {
+        return Left(CacheFailure('Attendance not found in cache'));
+      }
     } on CacheException catch (e) {
       return Left(CacheFailure(e.message));
     } catch (e) {
@@ -77,7 +94,26 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
     Attendance attendance,
   ) async {
     try {
-      final attendanceModel = AttendanceModel.fromEntity(attendance);
+      final now = DateTime.now();
+      
+      // Générer un ID unique si l'ID est vide ou invalide
+      final attendanceId = attendance.id.isEmpty || attendance.id.trim().isEmpty
+          ? 'attendance_${now.millisecondsSinceEpoch}_${(now.microsecondsSinceEpoch % 10000).toString().padLeft(4, '0')}'
+          : attendance.id;
+      
+      final attendanceWithId = attendance.id != attendanceId
+          ? Attendance(
+              id: attendanceId,
+              date: attendance.date,
+              type: attendance.type,
+              branchId: attendance.branchId,
+              presentMemberIds: attendance.presentMemberIds,
+              absentMemberIds: attendance.absentMemberIds,
+              lastSync: attendance.lastSync,
+            )
+          : attendance;
+      
+      final attendanceModel = AttendanceModel.fromEntity(attendanceWithId);
       // Sauvegarder localement d'abord
       await localDataSource.cacheAttendance(attendanceModel);
 

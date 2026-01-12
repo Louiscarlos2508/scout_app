@@ -27,13 +27,23 @@ class AttendanceModel extends Attendance {
 
   /// Crée un AttendanceModel à partir d'un JSON (Firestore).
   factory AttendanceModel.fromJson(Map<String, dynamic> json) {
+    SessionType sessionType;
+    final typeValue = json['type'];
+    if (typeValue is int) {
+      sessionType = SessionType.values[typeValue];
+    } else if (typeValue is String) {
+      sessionType = SessionType.values.firstWhere(
+        (e) => e.toString().split('.').last == typeValue,
+        orElse: () => SessionType.weekly,
+      );
+    } else {
+      sessionType = SessionType.weekly;
+    }
+
     return AttendanceModel(
       id: json['id'] as String,
       date: DateTime.parse(json['date'] as String),
-      type: SessionType.values.firstWhere(
-        (e) => e.toString() == 'SessionType.${json['type']}',
-        orElse: () => SessionType.weekly,
-      ),
+      type: sessionType,
       branchId: json['branchId'] as String,
       presentMemberIds: List<String>.from(json['presentMemberIds'] ?? []),
       absentMemberIds: List<String>.from(json['absentMemberIds'] ?? []),
@@ -48,12 +58,33 @@ class AttendanceModel extends Attendance {
     return {
       'id': id,
       'date': date.toIso8601String(),
-      'type': type.toString().split('.').last,
+      'type': type.index, // Stocker comme index pour une meilleure compatibilité
       'branchId': branchId,
       'presentMemberIds': presentMemberIds,
       'absentMemberIds': absentMemberIds,
       'lastSync': lastSync?.toIso8601String(),
     };
+  }
+
+  /// Crée une copie avec des valeurs modifiées.
+  AttendanceModel copyWith({
+    String? id,
+    DateTime? date,
+    SessionType? type,
+    String? branchId,
+    List<String>? presentMemberIds,
+    List<String>? absentMemberIds,
+    DateTime? lastSync,
+  }) {
+    return AttendanceModel(
+      id: id ?? this.id,
+      date: date ?? this.date,
+      type: type ?? this.type,
+      branchId: branchId ?? this.branchId,
+      presentMemberIds: presentMemberIds ?? this.presentMemberIds,
+      absentMemberIds: absentMemberIds ?? this.absentMemberIds,
+      lastSync: lastSync ?? this.lastSync,
+    );
   }
 }
 

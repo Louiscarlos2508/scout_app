@@ -2,6 +2,8 @@
 
 Ce document décrit l'architecture Clean Architecture utilisée dans le projet ScoutPresence.
 
+> **Note :** Le projet utilise le package [Lainisha](https://pub.dev/packages/lainisha) pour les fonctionnalités d'administration, fournissant un framework admin cross-platform avec support Material 3.
+
 ## Vue d'ensemble
 
 ScoutPresence suit les principes de Clean Architecture pour garantir :
@@ -87,7 +89,7 @@ Implémente les interfaces définies dans la couche Domain.
 
 #### DataSources
 
-**Local (Isar Database) :**
+**Local (Drift Database) :**
 - `MemberLocalDataSource` : Opérations locales sur les membres
 - `AttendanceLocalDataSource` : Opérations locales sur les présences
 
@@ -115,6 +117,7 @@ Gèrent l'état de l'application avec Provider.
 - `AttendanceProvider` : État des présences
 - `BranchProvider` : État des branches
 - `AuthProvider` : État d'authentification
+- `AdminProvider` : État de l'administration
 
 #### Screens
 Écrans organisés par fonctionnalité.
@@ -136,6 +139,10 @@ Gèrent l'état de l'application avec Provider.
 
 **Accueil :**
 - `HomeScreen` : Écran d'accueil
+
+**Administration :**
+- `AdminDashboardScreen` : Tableau de bord d'administration
+- `UserManagementScreen` : Gestion des utilisateurs
 
 #### Widgets
 Composants réutilisables organisés par domaine.
@@ -187,7 +194,7 @@ Code partagé utilisé par toutes les couches.
 ### Flux Standard (Lecture)
 
 ```
-Presentation → Use Case → Repository → DataSource → Firebase/Isar
+Presentation → Use Case → Repository → DataSource → Firebase/Drift
      ↑                                                       │
      └───────────────────────────────────────────────────────┘
 ```
@@ -197,7 +204,7 @@ Presentation → Use Case → Repository → DataSource → Firebase/Isar
 3. Le Use Case appelle le Repository (Domain interface)
 4. Le Repository Implementation (Data) décide de la source :
    - Si connecté : Remote DataSource (Firebase)
-   - Si déconnecté : Local DataSource (Isar)
+   - Si déconnecté : Local DataSource (Drift)
 5. Les données remontent sous forme d'Entity (Domain)
 6. Le Provider met à jour l'état
 7. L'interface se met à jour
@@ -205,7 +212,7 @@ Presentation → Use Case → Repository → DataSource → Firebase/Isar
 ### Flux Offline-First (Écriture)
 
 ```
-Presentation → Use Case → Repository → Local DataSource (Isar)
+Presentation → Use Case → Repository → Local DataSource (Drift)
                                     ↓
                             (Si connecté)
                                     ↓
@@ -216,15 +223,26 @@ Presentation → Use Case → Repository → Local DataSource (Isar)
 2. Si connecté, synchronisation avec Firebase en arrière-plan
 3. Les données sont disponibles immédiatement, même offline
 
-### Synchronisation
+### Synchronisation (RealtimeSyncService)
 
+Le service de synchronisation `RealtimeSyncService` implémente une synchronisation bidirectionnelle en temps réel :
+
+**Firestore → Local :**
 ```
-Network Status Change → Trigger Sync → Compare Local/Remote
-                                         ↓
-                              Merge & Resolve Conflicts
-                                         ↓
-                              Update Local & Remote
+Firestore Change → Stream Listener → Update Local (Drift)
 ```
+
+**Local → Firestore :**
+```
+Timer (30s) → Check Unsynced Data → Upload to Firestore
+```
+
+**Résolution de conflits :**
+```
+Compare lastSync timestamps → Last-Write-Wins → Update Both
+```
+
+**Note :** Ce service remplace l'ancien `SyncService` et est initialisé dans `main.dart`.
 
 ## Stratégie Offline-First
 
@@ -239,19 +257,25 @@ L'application fonctionne d'abord en local, puis synchronise avec le cloud.
 
 ### Implémentation
 
-1. **Stockage Local (Isar)**
+1. **Stockage Local (Drift Database)**
+   - **Mobile/Desktop** : SQLite via Drift Database 2.30.0
+   - **Web** : Firebase uniquement (pas de stockage local)
    - Toutes les opérations CRUD fonctionnent localement
    - Données disponibles instantanément
 
-2. **Synchronisation**
+2. **Synchronisation (RealtimeSyncService)**
+   - **Firestore → Local** : Écoute des changements Firestore en temps réel
+   - **Local → Firestore** : Synchronisation périodique des données non synchronisées (toutes les 30 secondes)
    - Automatique dès reconnexion
-   - Détection des modifications locales non synchronisées
-   - Résolution de conflits (dernière écriture gagne, ou stratégie plus sophistiquée)
+   - Détection des modifications locales non synchronisées (`lastSync == null`)
+   - Résolution de conflits : Last-Write-Wins (dernière écriture gagne)
 
 3. **Gestion des Conflits**
-   - Timestamp de dernière modification
+   - Timestamp de dernière modification (`lastSync`)
    - Identifiant unique par enregistrement
-   - Logs de synchronisation
+   - Stratégie Last-Write-Wins (comparaison des timestamps)
+
+**Note :** Les branches sont codées en dur dans `core/data/default_branches.dart` et ne sont pas synchronisées depuis Firestore.
 
 ## Patterns Utilisés
 

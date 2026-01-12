@@ -3,7 +3,7 @@ class AppConstants {
   AppConstants._();
 
   // Couleurs des branches
-  static const String branchLouveteauxColor = '#FFC107'; // Jaune
+  static const String branchLouveteauxColor = '#D97706'; // Ambre foncé (plus doux et lisible)
   static const String branchEclaireursColor = '#4CAF50'; // Vert
   static const String branchSinikieColor = '#FF9800'; // Orange
   static const String branchRoutiersColor = '#F44336'; // Rouge

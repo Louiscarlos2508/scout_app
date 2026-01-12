@@ -2,7 +2,7 @@
 class DatabaseConstants {
   DatabaseConstants._();
 
-  // Collections Isar
+  // Tables Drift
   static const String membersCollection = 'members';
   static const String attendanceCollection = 'attendance';
   static const String branchesCollection = 'branches';
